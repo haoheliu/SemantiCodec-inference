@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -17,11 +16,13 @@ from semanticodec.modules.decoder.latent_diffusion.modules.ema import LitEma
 from semanticodec.modules.decoder.latent_diffusion.modules.diffusionmodules.util import (
     make_beta_schedule,
     extract_into_tensor,
-    noise_like)
+    noise_like,
+)
 
 from semanticodec.modules.decoder.latent_diffusion.models.ddim import DDIMSampler
 from semanticodec.modules.decoder.latent_diffusion.util import disabled_train
 from semanticodec.utils import PositionalEncoding
+
 
 class DDPM(nn.Module):
     # classic DDPM with Gaussian diffusion, in image space
@@ -47,7 +48,11 @@ class DDPM(nn.Module):
         logvar_init=0.0,
     ):
         super().__init__()
-        assert parameterization in ["eps", "x0", "v"], 'currently only supporting "eps" and "x0" and "v"'
+        assert parameterization in [
+            "eps",
+            "x0",
+            "v",
+        ], 'currently only supporting "eps" and "x0" and "v"'
         self.parameterization = parameterization
         self.state = None
         assert sampling_rate is not None
@@ -169,8 +174,15 @@ class DDPM(nn.Module):
                 / (2.0 * 1 - torch.Tensor(alphas_cumprod))
             )
         elif self.parameterization == "v":
-            lvlb_weights = torch.ones_like(self.betas ** 2 / (
-                    2 * self.posterior_variance * to_torch(alphas) * (1 - self.alphas_cumprod)))
+            lvlb_weights = torch.ones_like(
+                self.betas**2
+                / (
+                    2
+                    * self.posterior_variance
+                    * to_torch(alphas)
+                    * (1 - self.alphas_cumprod)
+                )
+            )
         else:
             raise NotImplementedError("mu not supported")
         # TODO how to choose this term
@@ -184,14 +196,14 @@ class DDPM(nn.Module):
             self.model_ema.store(self.model.parameters())
             self.model_ema.copy_to(self.model)
             # if context is not None:
-                # print(f"{context}: Switched to EMA weights")
+            # print(f"{context}: Switched to EMA weights")
         try:
             yield None
         finally:
             if self.use_ema:
                 self.model_ema.restore(self.model.parameters())
                 # if context is not None:
-                    # print(f"{context}: Restored training weights")
+                # print(f"{context}: Restored training weights")
 
     def q_mean_variance(self, x_start, t):
         """
@@ -287,21 +299,23 @@ class DDPM(nn.Module):
         # self.register_buffer('sqrt_alphas_cumprod', to_torch(np.sqrt(alphas_cumprod)))
         # self.register_buffer('sqrt_one_minus_alphas_cumprod', to_torch(np.sqrt(1. - alphas_cumprod)))
         return (
-                extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * x_t -
-                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * v
+            extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * x_t
+            - extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * v
         )
 
     def predict_eps_from_z_and_v(self, x_t, t, v):
         return (
-                extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * v +
-                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * x_t
+            extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * v
+            + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape)
+            * x_t
         )
 
     def get_v(self, x, noise, t):
         return (
-                extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) * noise -
-                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape) * x
+            extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) * noise
+            - extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape) * x
         )
+
 
 class LatentDiffusion(DDPM):
     """main class"""
@@ -395,9 +409,7 @@ class LatentDiffusion(DDPM):
             decoding = self.first_stage_model.decode(z)
         return decoding
 
-    def mel_spectrogram_to_waveform(
-        self, mel
-    ):
+    def mel_spectrogram_to_waveform(self, mel):
         # Mel: [bs, 1, t-steps, fbins]
         if len(mel.size()) == 4:
             mel = mel.squeeze(1)
@@ -460,33 +472,50 @@ class LatentDiffusion(DDPM):
         unconditional_guidance_scale=1.0,
     ):
         batch_size = quanized_feature.shape[0]
-        
+
         pe = self.pos_embed(quanized_feature)
 
         unconditional_conditioning = {}
         if unconditional_guidance_scale != 1.0:
             unconditional_quanized_feature = torch.cat(
-                [quanized_feature * 0.0, pe.repeat(quanized_feature.size(0), 1, 1).to(quanized_feature.device)],
+                [
+                    quanized_feature * 0.0,
+                    pe.repeat(quanized_feature.size(0), 1, 1).to(
+                        quanized_feature.device
+                    ),
+                ],
                 dim=-1,
             )
-            unconditional_conditioning = {"crossattn_audiomae_pooled": [
-                unconditional_quanized_feature,
-                torch.ones((unconditional_quanized_feature.size(0), unconditional_quanized_feature.size(1)))
+            unconditional_conditioning = {
+                "crossattn_audiomae_pooled": [
+                    unconditional_quanized_feature,
+                    torch.ones(
+                        (
+                            unconditional_quanized_feature.size(0),
+                            unconditional_quanized_feature.size(1),
+                        )
+                    )
                     .to(unconditional_quanized_feature.device)
                     .float(),
-            ]}
+                ]
+            }
 
         quanized_feature = torch.cat(
-            [quanized_feature, pe.repeat(quanized_feature.size(0), 1, 1).to(quanized_feature.device)],
+            [
+                quanized_feature,
+                pe.repeat(quanized_feature.size(0), 1, 1).to(quanized_feature.device),
+            ],
             dim=-1,
         )
-        latent = {"crossattn_audiomae_pooled": [
-            quanized_feature,
-            torch.ones((quanized_feature.size(0), quanized_feature.size(1)))
+        latent = {
+            "crossattn_audiomae_pooled": [
+                quanized_feature,
+                torch.ones((quanized_feature.size(0), quanized_feature.size(1)))
                 .to(quanized_feature.device)
                 .float(),
-        ]}
- 
+            ]
+        }
+
         samples, _ = self.sample_log(
             cond=latent,
             batch_size=batch_size,
@@ -495,30 +524,36 @@ class LatentDiffusion(DDPM):
             ddim_steps=ddim_steps,
             eta=ddim_eta,
             unconditional_guidance_scale=unconditional_guidance_scale,
-            unconditional_conditioning=unconditional_conditioning
+            unconditional_conditioning=unconditional_conditioning,
         )
 
         mel = self.decode_first_stage(samples)
 
         return self.mel_spectrogram_to_waveform(mel)
 
+
 class DiffusionWrapper(nn.Module):
     def __init__(self, diff_model_config, conditioning_key):
         super().__init__()
         self.diffusion_model = instantiate_from_config(diff_model_config)
-        self.conditioning_key = conditioning_key        
+        self.conditioning_key = conditioning_key
 
-    def forward(
-        self, x, t, cond_dict: dict={}
-    ):
+    def forward(self, x, t, cond_dict: dict = {}):
         x = x.contiguous()
         t = t.contiguous()
         context_list, attn_mask_list = [], []
         context, attn_mask = cond_dict["crossattn_audiomae_pooled"]
         context_list.append(context)
         attn_mask_list.append(attn_mask)
-        out = self.diffusion_model(x, t, context_list=context_list, y=None, context_attn_mask_list=attn_mask_list)
+        out = self.diffusion_model(
+            x,
+            t,
+            context_list=context_list,
+            y=None,
+            context_attn_mask_list=attn_mask_list,
+        )
         return out
+
 
 def extract_encoder_state_dict(checkpoint_path):
     state_dict = torch.load(checkpoint_path)["state_dict"]
@@ -527,36 +562,37 @@ def extract_encoder_state_dict(checkpoint_path):
         if "cond_stage_models.0" in key:
             if "pos_embed.pe" in key:
                 continue
-            new_key_name = key.replace("cond_stage_models.0.","")
+            new_key_name = key.replace("cond_stage_models.0.", "")
             new_state_dict[new_key_name] = state_dict[key]
     return new_state_dict
 
-def overlap_add_waveform(windowed_waveforms, overlap_duration = 0.64):
+
+def overlap_add_waveform(windowed_waveforms, overlap_duration=0.64):
     """
     Concatenates a series of windowed waveforms with overlap, applying fade-in and fade-out effects to the overlaps.
-    
+
     Parameters:
     - windowed_waveforms: a list of numpy arrays with shape (1, 1, samples_per_waveform)
-    
+
     Returns:
     - A single waveform numpy array resulting from the overlap-add process.
     """
     # Assuming a sampling rate of 16000 Hz and 0.64 seconds overlap
     if overlap_duration < 1e-4:
         return np.concatenate(windowed_waveforms, axis=-1)
-        
+
     sampling_rate = 16000
     overlap_samples = int(overlap_duration * sampling_rate)
-    
+
     # Initialize the output waveform
     output_waveform = np.array([]).reshape(1, 1, -1)
-    
+
     for i, waveform in enumerate(windowed_waveforms):
         # If not the first waveform, apply fade-in at the beginning
         if i > 0:
             fade_in = np.linspace(0, 1, overlap_samples).reshape(1, 1, -1)
             waveform[:, :, :overlap_samples] *= fade_in
-        
+
         # If output waveform already has content, apply fade-out to its last overlap and add the overlapping parts
         if output_waveform.size > 0:
             fade_out = np.linspace(1, 0, overlap_samples).reshape(1, 1, -1)
@@ -564,11 +600,13 @@ def overlap_add_waveform(windowed_waveforms, overlap_duration = 0.64):
             output_waveform[:, :, -overlap_samples:] *= fade_out
             # Add the faded-in start of the current waveform to the faded-out end of the output waveform
             output_waveform[:, :, -overlap_samples:] += waveform[:, :, :overlap_samples]
-        
+
         # Concatenate the current waveform (minus the initial overlap if not the first) to the output
         if output_waveform.size == 0:
             output_waveform = waveform
         else:
-            output_waveform = np.concatenate((output_waveform, waveform[:, :, overlap_samples:]), axis=2)
-    
+            output_waveform = np.concatenate(
+                (output_waveform, waveform[:, :, overlap_samples:]), axis=2
+            )
+
     return output_waveform

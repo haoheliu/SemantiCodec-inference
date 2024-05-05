@@ -4,6 +4,7 @@ import torch.nn as nn
 
 import torchaudio
 
+
 def concat_1x2(tensor):
     batchsize, width, height, channels = tensor.shape
     # Check if height is divisible by 2 for concatenation
@@ -30,23 +31,34 @@ def concat_2x2(tensor):
     )
     return tensor_concat
 
+
 def extract_kaldi_fbank_feature(waveform, sampling_rate, target_length=1024):
-    norm_mean= -4.2677393
-    norm_std= 4.5689974
+    norm_mean = -4.2677393
+    norm_std = 4.5689974
 
     sampling_rate = sampling_rate
 
-    if(sampling_rate != 16000):
-        waveform_16k = torchaudio.functional.resample(waveform, orig_freq=sampling_rate, new_freq=16000)
+    if sampling_rate != 16000:
+        waveform_16k = torchaudio.functional.resample(
+            waveform, orig_freq=sampling_rate, new_freq=16000
+        )
     else:
         waveform_16k = waveform
 
     waveform_16k = waveform_16k - waveform_16k.mean()
-    fbank = torchaudio.compliance.kaldi.fbank(waveform_16k, htk_compat=True, sample_frequency=16000, use_energy=False,
-                                                  window_type='hanning', num_mel_bins=128, dither=0.0, frame_shift=10)
+    fbank = torchaudio.compliance.kaldi.fbank(
+        waveform_16k,
+        htk_compat=True,
+        sample_frequency=16000,
+        use_energy=False,
+        window_type="hanning",
+        num_mel_bins=128,
+        dither=0.0,
+        frame_shift=10,
+    )
 
     TARGET_LEN = target_length
-    
+
     # cut and pad
     n_frames = fbank.shape[0]
     p = TARGET_LEN - n_frames
@@ -58,20 +70,23 @@ def extract_kaldi_fbank_feature(waveform, sampling_rate, target_length=1024):
 
     fbank = (fbank - norm_mean) / (norm_std * 2)
 
-    return {"ta_kaldi_fbank": fbank} # [1024, 128] 
+    return {"ta_kaldi_fbank": fbank}  # [1024, 128]
+
 
 class PositionalEncoding:
     def __init__(self, seq_length=512, embedding_dim=192):
         self.seq_length = seq_length
         self.embedding_dim = embedding_dim
-        
+
         # Initialize positional embeddings
         position = torch.arange(seq_length).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, embedding_dim, 2) * -(math.log(10000.0) / embedding_dim))
+        div_term = torch.exp(
+            torch.arange(0, embedding_dim, 2) * -(math.log(10000.0) / embedding_dim)
+        )
         pe = torch.zeros(seq_length, embedding_dim)
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        
+
         # Add a 'batch' dimension with 'unsqueeze'
         self.pe = pe.unsqueeze(0)
 
@@ -81,4 +96,4 @@ class PositionalEncoding:
             x: Tensor, shape [batch_size, seq_length, embedding_dim]
         """
         # return positional embeddings
-        return self.pe[:, :x.size(1)]
+        return self.pe[:, : x.size(1)]

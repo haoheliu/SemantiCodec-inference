@@ -6,7 +6,13 @@ import numpy as np
 from semanticodec.modules.audiomae.AudioMAE import Vanilla_AudioMAE
 from vector_quantize_pytorch import VectorQuantize
 from vector_quantize_pytorch import ResidualVQ
-from semanticodec.utils import concat_1x2, concat_2x2, PositionalEncoding, extract_kaldi_fbank_feature
+from semanticodec.utils import (
+    concat_1x2,
+    concat_2x2,
+    PositionalEncoding,
+    extract_kaldi_fbank_feature,
+)
+
 
 class AudioMAEConditionQuantResEncoder(nn.Module):
     def __init__(
@@ -18,7 +24,7 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         use_cosine_sim=False,
         decay=0.9,
         residual_encoder="lstm",
-        lstm_layer = 2,
+        lstm_layer=2,
         lstm_bidirectional=True,
         commitment_weight=1.0,
         rvq_layers=0,
@@ -42,7 +48,7 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         self.audiomae.eval()
         for p in self.audiomae.parameters():
             p.requires_grad = False
-        
+
         self.no_audiomae_mask = True
         self.no_audiomae_average = False
 
@@ -59,7 +65,9 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
             raise ValueError("Invalid model name %s" % self.residual_encoder)
 
         self.encoder_output_linear = nn.Linear(
-            in_features=feature_dimension * 2 if not lstm_bidirectional else feature_dimension * 4,
+            in_features=feature_dimension * 2
+            if not lstm_bidirectional
+            else feature_dimension * 4,
             out_features=feature_dimension,
             bias=False,
         )
@@ -72,8 +80,8 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
                 codebook_size=codebook_size,
                 decay=decay,
                 commitment_weight=commitment_weight,
-                codebook_dim = codebook_dim,
-                use_cosine_sim = use_cosine_sim
+                codebook_dim=codebook_dim,
+                use_cosine_sim=use_cosine_sim,
             )
         else:
             self.quantizer = ResidualVQ(
@@ -90,8 +98,8 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         feature_temporal_dim = feature.shape[-2]
         for i, index in enumerate(padding_cutoff_index):
             feature_cutoff_index = math.ceil(feature_temporal_dim * index)
-            feature[i, int(feature_cutoff_index):] *= 0.0
-            feature[i, int(feature_cutoff_index):] -= 1.0
+            feature[i, int(feature_cutoff_index) :] *= 0.0
+            feature[i, int(feature_cutoff_index) :] -= 1.0
         return feature
 
     # Required
@@ -100,31 +108,48 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         assert param.requires_grad == False
         device = param.device
         token_num = 512
-        representation_quant = torch.zeros((batchsize, token_num, 768)).to(device).float()
+        representation_quant = (
+            torch.zeros((batchsize, token_num, 768)).to(device).float()
+        )
         if self.use_positional_embedding:
             pe = self.pos_embed(representation_quant)
-            representation_quant = torch.cat([representation_quant, pe.repeat(batchsize, 1, 1)], dim=-1)
-        return [representation_quant, torch.ones((batchsize, token_num)).to(device).float()]
+            representation_quant = torch.cat(
+                [representation_quant, pe.repeat(batchsize, 1, 1)], dim=-1
+            )
+        return [
+            representation_quant,
+            torch.ones((batchsize, token_num)).to(device).float(),
+        ]
 
-    def quant_mem_efficient(self, representation, first_token_removed=False, feature_dim=768):
+    def quant_mem_efficient(
+        self, representation, first_token_removed=False, feature_dim=768
+    ):
         assert representation.size(-1) % 768 == 0
         # Removing the first token and keeping the shape as [batch_size, seq_length - 1, 768] for clarity
-        
+
         if not first_token_removed:
-            representation = representation[:, 1:, :]  # Shape: [batch_size, seq_length - 1, 768]
+            representation = representation[
+                :, 1:, :
+            ]  # Shape: [batch_size, seq_length - 1, 768]
 
         # Compute squared norms of each row in representation
-        norm_rep = representation.pow(2).sum(dim=2, keepdim=True)  # Shape: [batch_size, seq_length - 1, 1]
+        norm_rep = representation.pow(2).sum(
+            dim=2, keepdim=True
+        )  # Shape: [batch_size, seq_length - 1, 1]
 
         # Compute squared norms of centroids
-        norm_cent = self.centroid_npy.pow(2).sum(dim=1, keepdim=True)  # Shape: [2048, 1]
+        norm_cent = self.centroid_npy.pow(2).sum(
+            dim=1, keepdim=True
+        )  # Shape: [2048, 1]
 
         # Compute dot products
         # Reshape representation for batch matrix multiplication: [batch_size * (seq_length - 1), 768]
         rep_flat = representation.reshape(-1, feature_dim)
         # Dot product, need to transpose centroids: [batch_size * (seq_length - 1), 2048]
         dot_product = torch.mm(rep_flat, self.centroid_npy.t())
-        dot_product = dot_product.reshape(representation.shape[0], representation.shape[1], -1)  # Reshape back
+        dot_product = dot_product.reshape(
+            representation.shape[0], representation.shape[1], -1
+        )  # Reshape back
 
         # Compute L2 distance using the formula: ||a-b||^2 = ||a||^2 + ||b||^2 - 2*a.b
         distances = norm_rep + norm_cent.t() - 2 * dot_product  # Correct broadcasting
@@ -142,8 +167,9 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         Returns:
             torch.Tensor: The continuous representation, shape [batch_size, seq_length - 1, feature_dim]
         """
-        return F.embedding(tokens, self.centroid_npy)  # Shape: [batch_size, seq_length - 1, 768]
-
+        return F.embedding(
+            tokens, self.centroid_npy
+        )  # Shape: [batch_size, seq_length - 1, 768]
 
     def indices_utilization_statistic(self, indices):
         # indices shape: [batchsize, 256, self.rvq_layers], values are integer codebook indices
@@ -252,7 +278,7 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
             commit_loss=torch.zeros((1,)).to(device),
         )
 
-    def long_token_split_window(self, tokens, window_length=512, overlap = 0.0625):
+    def long_token_split_window(self, tokens, window_length=512, overlap=0.0625):
         # Overlap 0.64 seconds
         # batch: [batchsize, token_length, embedding_dimension]
         # Split into segments with overlap
@@ -261,10 +287,10 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         current_start = 0
         token_window_list = []
         while current_start + window_length < token_length:
-            current_batch = tokens[:, current_start:current_start + window_length, :]
+            current_batch = tokens[:, current_start : current_start + window_length, :]
             token_window_list.append(current_batch)
             current_start += window_length - overlap
-        
+
         remaining_batch = tokens[:, current_start:, :]
 
         if remaining_batch.size(-2) > 0:
@@ -272,7 +298,7 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
             # remaining_batch = F.pad(remaining_batch, (0, 0, 0, window_length - remaining_batch.size(-2), 0, 0))
             token_window_list.append(remaining_batch)
         return token_window_list
-        
+
     def forward(self, batch):
         # Perform padding before this function
         # Trim the audio token after this function
@@ -288,7 +314,7 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         tokens_list = []
         quantized_feature_list = []
         while current_start + window_length <= total_length_batch:
-            current_batch = batch[:, current_start:current_start + window_length, :]
+            current_batch = batch[:, current_start : current_start + window_length, :]
             with torch.no_grad():
                 # [bs, 513, 768]
                 output = self._forward(current_batch)
@@ -309,7 +335,9 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
         padding_cutoff_index = []
         temporal_dim = batch.shape[-2]
         for i in range(batch.shape[0]):
-            active_index = torch.std(batch[i,0], dim=-1)<=1e-7 # F F T T F F T T T T T
+            active_index = (
+                torch.std(batch[i, 0], dim=-1) <= 1e-7
+            )  # F F T T F F T T T T T
             # If there are empty segment in the audio or there are padding in the audio
             try:
                 if active_index.any():
@@ -329,12 +357,13 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
                     column_max = temporal_dim
             except Exception as e:
                 import traceback
+
                 traceback.print_exc()
                 print(false_indices)
                 print(false_indices.numel())
                 column_max = 0
 
-            padding_cutoff_index.append(column_max/temporal_dim)
+            padding_cutoff_index.append(column_max / temporal_dim)
 
         with torch.no_grad():
             # [bs, 513, 768]
@@ -366,15 +395,21 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
             representation_quant_stack_unquant = torch.cat(
                 [representation, representation_quant], dim=-1
             )
-            
-            representation_quant_stack_unquant = self.mark_out_padding(representation_quant_stack_unquant, padding_cutoff_index)
+
+            representation_quant_stack_unquant = self.mark_out_padding(
+                representation_quant_stack_unquant, padding_cutoff_index
+            )
 
             # Use the encoder to extract extra information for conditioning
             if self.residual_encoder == "transformer":
                 representation_residual = self.encoder(
                     representation_quant_stack_unquant.permute(0, 2, 1)
                 ).permute(0, 2, 1)
-            elif self.residual_encoder == "lstm" or self.residual_encoder == "mamba" or self.residual_encoder == "ResidualLSTM":
+            elif (
+                self.residual_encoder == "lstm"
+                or self.residual_encoder == "mamba"
+                or self.residual_encoder == "ResidualLSTM"
+            ):
                 representation_residual = self.encoder(
                     representation_quant_stack_unquant
                 )
@@ -403,7 +438,9 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
 
             representation_quant = torch.cat([representation], dim=-1)
 
-        representation_quant = self.mark_out_padding(representation_quant, padding_cutoff_index)
+        representation_quant = self.mark_out_padding(
+            representation_quant, padding_cutoff_index
+        )
 
         if self.use_positional_embedding:
             pe = self.pos_embed(representation_quant).to(representation_quant.device)
@@ -419,21 +456,17 @@ class AudioMAEConditionQuantResEncoder(nn.Module):
                 .to(representation_quant.device)
                 .float(),
             ],
-            tokens = tokens
+            tokens=tokens,
         )
 
     def token_to_quantized_feature(self, tokens):
-        semantic_tokens, acoustic_tokens = tokens[...,0], tokens[...,1]
+        semantic_tokens, acoustic_tokens = tokens[..., 0], tokens[..., 1]
         semantic_feature = self.unquant(semantic_tokens)
         token_num, feature_dim = semantic_feature.shape[-2], semantic_feature.shape[-1]
-        acoustic_feature = self.quantizer.get_output_from_indices(acoustic_tokens).reshape(1, token_num, feature_dim)
-        return torch.cat(
-                [acoustic_feature, semantic_feature], dim=-1
-            )
+        acoustic_feature = self.quantizer.get_output_from_indices(
+            acoustic_tokens
+        ).reshape(1, token_num, feature_dim)
+        return torch.cat([acoustic_feature, semantic_feature], dim=-1)
 
     def wrap_return_dict(self, crossattn_audiomae_pooled, tokens):
-        return {
-            "quantized_feature": crossattn_audiomae_pooled,
-            "tokens": tokens
-        }
-
+        return {"quantized_feature": crossattn_audiomae_pooled, "tokens": tokens}

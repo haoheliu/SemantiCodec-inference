@@ -8,6 +8,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class GroupNorm32(nn.GroupNorm):
     def __init__(self, num_groups, num_channels, swish, eps=1e-5):
         super().__init__(num_groups=num_groups, num_channels=num_channels, eps=eps)
@@ -20,6 +21,7 @@ class GroupNorm32(nn.GroupNorm):
         elif self.swish:
             y = y * F.sigmoid(y * float(self.swish))
         return y
+
 
 def conv_nd(dims, *args, **kwargs):
     """
@@ -102,7 +104,7 @@ def normalization(channels, swish=0.0):
     return GroupNorm32(num_channels=channels, num_groups=32, swish=swish)
 
 
-#def timestep_embedding(timesteps, dim, max_period=10000):
+# def timestep_embedding(timesteps, dim, max_period=10000):
 #    """
 #    Create sinusoidal timestep embeddings.
 
@@ -122,6 +124,7 @@ def normalization(channels, swish=0.0):
 #        embedding = th.cat([embedding, th.zeros_like(embedding[:, :1])], dim=-1)
 #    return embedding
 
+
 def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
     """
     Create sinusoidal timestep embeddings.
@@ -134,16 +137,17 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
     if not repeat_only:
         half = dim // 2
         freqs = th.exp(
-            -math.log(max_period) * th.arange(start=0, end=half, dtype=th.float32) / half
+            -math.log(max_period)
+            * th.arange(start=0, end=half, dtype=th.float32)
+            / half
         ).to(device=timesteps.device)
         args = timesteps[:, None].float() * freqs[None]
         embedding = th.cat([th.cos(args), th.sin(args)], dim=-1)
         if dim % 2:
             embedding = th.cat([embedding, th.zeros_like(embedding[:, :1])], dim=-1)
     else:
-        embedding = repeat(timesteps, 'b -> b d', d=dim)
+        embedding = repeat(timesteps, "b -> b d", d=dim)
     return embedding
-
 
 
 def checkpoint(func, inputs, params, flag):
@@ -157,7 +161,7 @@ def checkpoint(func, inputs, params, flag):
                    explicitly take as arguments.
     :param flag: if False, disable gradient checkpointing.
     """
-    #flag = False
+    # flag = False
     if flag:
         args = tuple(inputs) + tuple(params)
         return CheckpointFunction.apply(func, len(inputs), *args)

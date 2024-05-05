@@ -6,7 +6,9 @@ import numpy as np
 from einops import rearrange
 
 from semanticodec.modules.decoder.latent_diffusion.util import instantiate_from_config
-from semanticodec.modules.decoder.latent_diffusion.modules.attention import LinearAttention
+from semanticodec.modules.decoder.latent_diffusion.modules.attention import (
+    LinearAttention,
+)
 
 
 def get_timestep_embedding(timesteps, embedding_dim):

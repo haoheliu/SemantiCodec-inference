@@ -26,19 +26,24 @@ def get_available_checkpoint_keys(model, ckpt):
     )
     return new_state_dict
 
+
 def get_param_num(model):
     num_param = sum(param.numel() for param in model.parameters())
     return num_param
+
 
 def torch_version_orig_mod_remove(state_dict):
     new_state_dict = {}
     new_state_dict["generator"] = {}
     for key in state_dict["generator"].keys():
-        if("_orig_mod." in key):
-            new_state_dict["generator"][key.replace("_orig_mod.","")] = state_dict["generator"][key]
+        if "_orig_mod." in key:
+            new_state_dict["generator"][key.replace("_orig_mod.", "")] = state_dict[
+                "generator"
+            ][key]
         else:
             new_state_dict["generator"][key] = state_dict["generator"][key]
     return new_state_dict
+
 
 def get_vocoder(config, device, mel_bins):
     name = "HiFi-GAN"

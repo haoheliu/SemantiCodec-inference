@@ -13,15 +13,20 @@ from queue import Queue
 from inspect import isfunction
 from PIL import Image, ImageDraw, ImageFont
 
+
 def disabled_train(self, mode=True):
     """Overwrite model.train with this function to make sure train/eval mode
     does not change anymore."""
     return self
 
+
 def get_unconditional_condition(batchsize, downsampling_rate, device):
     token_num = 512 // downsampling_rate
-    representation_quant = torch.zeros((batchsize, token_num, 768 * downsampling_rate)).to(device).float()
+    representation_quant = (
+        torch.zeros((batchsize, token_num, 768 * downsampling_rate)).to(device).float()
+    )
     return [representation_quant, torch.ones((batchsize, token_num)).to(device).float()]
+
 
 def log_txt_as_img(wh, xc, size=10):
     # wh a tuple of (width, height)
@@ -104,12 +109,14 @@ def instantiate_from_config(config):
         raise KeyError("Expected key `target` to instantiate.")
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
 
+
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
     if reload:
         module_imp = importlib.import_module(module)
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
+
 
 def _do_parallel_data_prefetch(func, Q, data, idx, idx_to_fn=False):
     # create dummy dataset instance

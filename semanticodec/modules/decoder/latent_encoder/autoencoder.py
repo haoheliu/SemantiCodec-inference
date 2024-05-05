@@ -4,7 +4,10 @@ import os
 import torch.nn.functional as F
 from semanticodec.modules.decoder.latent_diffusion.modules.ema import *
 
-from semanticodec.modules.decoder.latent_diffusion.modules.diffusionmodules.model import Encoder, Decoder
+from semanticodec.modules.decoder.latent_diffusion.modules.diffusionmodules.model import (
+    Encoder,
+    Decoder,
+)
 from semanticodec.modules.decoder.latent_diffusion.modules.distributions.distributions import (
     DiagonalGaussianDistribution,
 )
@@ -13,6 +16,7 @@ import soundfile as sf
 
 from semanticodec.modules.decoder.utilities.model import get_vocoder
 from semanticodec.modules.decoder.utilities.tools import synth_one_sample
+
 
 class AutoencoderKL(nn.Module):
     def __init__(
@@ -33,8 +37,10 @@ class AutoencoderKL(nn.Module):
         base_learning_rate=1e-5,
     ):
         super().__init__()
-        self.automatic_optimization=False
-        assert "mel_bins" in ddconfig.keys(), "mel_bins is not specified in the Autoencoder config"
+        self.automatic_optimization = False
+        assert (
+            "mel_bins" in ddconfig.keys()
+        ), "mel_bins is not specified in the Autoencoder config"
         num_mel = ddconfig["mel_bins"]
         self.image_key = image_key
         self.sampling_rate = sampling_rate
@@ -75,7 +81,9 @@ class AutoencoderKL(nn.Module):
         self.logger_exp_group_name = None
 
     def get_log_dir(self):
-        return os.path.join(self.logger_save_dir, self.logger_exp_group_name, self.logger_exp_name)
+        return os.path.join(
+            self.logger_save_dir, self.logger_exp_group_name, self.logger_exp_name
+        )
 
     def set_log_dir(self, save_dir, exp_group_name, exp_name):
         self.logger_save_dir = save_dir
@@ -211,4 +219,3 @@ class IdentityFirstStage(torch.nn.Module):
 
     def forward(self, x, *args, **kwargs):
         return x
-
