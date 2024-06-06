@@ -1,3 +1,4 @@
+from configparser import NoSectionError
 import torch
 import torch.nn as nn
 import os
@@ -12,6 +13,7 @@ from semanticodec.modules.decoder.latent_diffusion.models.ddpm import (
 from semanticodec.config import get_config
 from semanticodec.modules.decoder.latent_diffusion.util import instantiate_from_config
 from semanticodec.utils import extract_kaldi_fbank_feature
+from huggingface_hub import hf_hub_download
 
 # Constants
 SAMPLE_RATE = 16000
@@ -28,7 +30,8 @@ class SemantiCodec(nn.Module):
         semantic_vocab_size,
         ddim_sample_step=50,
         cfg_scale=2.0,
-        checkpoint_path=None,
+        checkpoint_path = None,
+        cache_path="pretrained",
     ):
         super().__init__()
         self.token_rate = token_rate
@@ -46,7 +49,19 @@ class SemantiCodec(nn.Module):
             token_rate, semantic_vocab_size, checkpoint_path
         )
         encoder_checkpoint_path = os.path.join(checkpoint_path, "encoder.ckpt")
+        if not os.path.exists(encoder_checkpoint_path):
+            if not os.path.exists(cache_path):
+                os.makedirs(cache_path)
+                print(f"checkpoint cache dir '{cache_path}' was created.")
+            encoder_checkpoint_path = hf_hub_download(repo_id="haoheliu/SemantiCodec",filename=checkpoint_path+"/encoder.ckpt",cache_dir=cache_path)
         decoder_checkpoint_path = os.path.join(checkpoint_path, "decoder.ckpt")
+        if not os.path.exists(decoder_checkpoint_path):
+            decoder_checkpoint_path = hf_hub_download(repo_id="haoheliu/SemantiCodec",filename=checkpoint_path+"/decoder.ckpt",cache_dir=cache_path)
+
+        if not os.path.exists(semanticodebook):
+            semanticodebook = "/".join(semanticodebook.split("/")[-3:])
+            semanticodebook = hf_hub_download(repo_id="haoheliu/SemantiCodec",filename=semanticodebook,cache_dir=cache_path)
+
         # Initialize encoder
         print("🚀 Loading SemantiCodec encoder")
         self.encoder = AudioMAEConditionQuantResEncoder(

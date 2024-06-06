@@ -2,7 +2,7 @@ from semanticodec import SemantiCodec
 import soundfile as sf
 
 semanticodec = SemantiCodec(token_rate=100, semantic_vocab_size=16384)  # 1.35 kbps
-filepath = "test/test.wav"
+filepath = "test.wav"
 
 tokens = semanticodec.encode(filepath)
 waveform = semanticodec.decode(tokens)
