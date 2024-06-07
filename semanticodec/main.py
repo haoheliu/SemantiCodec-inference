@@ -41,6 +41,8 @@ class SemantiCodec(nn.Module):
 
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
+        elif torch.backends.mps.is_available(): 
+            self.device = torch.device("mps")
         else:
             self.device = torch.device("cpu")
 
@@ -64,20 +66,22 @@ class SemantiCodec(nn.Module):
 
         # Initialize encoder
         print("🚀 Loading SemantiCodec encoder")
+        state_dict = torch.load(encoder_checkpoint_path, map_location="cpu")
         self.encoder = AudioMAEConditionQuantResEncoder(
             feature_dimension=feature_dim,
             lstm_layer=lstm_layers,
             centroid_npy_path=semanticodebook,
-        ).to(self.device)
-        state_dict = torch.load(encoder_checkpoint_path)
+        )
         self.encoder.load_state_dict(state_dict)
+        self.encoder = self.encoder.to(self.device)
         print("✅ Encoder loaded")
 
         # Initialize decoder
         print("🚀 Loading SemantiCodec decoder")
-        self.decoder = instantiate_from_config(config["model"]).to(self.device)
-        checkpoint = torch.load(decoder_checkpoint_path)
+        self.decoder = instantiate_from_config(config["model"])
+        checkpoint = torch.load(decoder_checkpoint_path, map_location="cpu")
         self.decoder.load_state_dict(checkpoint)
+        self.decoder = self.decoder.to(self.device)
         print("✅ Decoder loaded")
 
     def load_audio(self, filepath):

@@ -334,6 +334,8 @@ class LatentDiffusion(DDPM):
     ):
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            self.device = torch.device("mps")
         else:
             self.device = torch.device("cpu")
 
@@ -440,7 +442,7 @@ class LatentDiffusion(DDPM):
 
         # print("Use ddim sampler")
 
-        ddim_sampler = DDIMSampler(self)
+        ddim_sampler = DDIMSampler(self, device = self.device)
         samples, intermediates = ddim_sampler.sample(
             ddim_steps,
             batch_size,

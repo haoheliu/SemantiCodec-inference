@@ -73,6 +73,12 @@ class DDIMSampler(object):
             eta=ddim_eta,
             verbose=verbose,
         )
+        
+        if torch.backends.mps.is_available():
+            ddim_sigmas = ddim_sigmas.to(torch.float32)
+            ddim_alphas = ddim_alphas.to(torch.float32)
+            ddim_alphas_prev = ddim_alphas_prev.astype(np.float32)
+
         self.register_buffer("ddim_sigmas", ddim_sigmas)
         self.register_buffer("ddim_alphas", ddim_alphas)
         self.register_buffer("ddim_alphas_prev", ddim_alphas_prev)

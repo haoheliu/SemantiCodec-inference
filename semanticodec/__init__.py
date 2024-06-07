@@ -1,1 +1,1 @@
-from semanticodec.semanticodec import SemantiCodec
+from semanticodec.main import SemantiCodec
