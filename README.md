@@ -1,17 +1,19 @@
-# SemantiCodec
+[![arXiv](https://img.shields.io/badge/arXiv-2301.12503-brightgreen.svg?style=flat-square)](https://arxiv.org/abs/2405.00233)  [![githubio](https://img.shields.io/badge/GitHub.io-Audio_Samples-blue?logo=Github&style=flat-square)](https://haoheliu.github.io/SemantiCodec/) 
 
+# SemantiCodec
 Ultra-low bitrate neural audio codec.
 
 **Highlight**
 - Bitrate: 0.31 kbps - 1.40 kbps
 - Token rate: 25, 50, or 100 per second
+- cpu, cuda, and mps are supported
 
 # Usage
 
 ## Installation
 
 ```bash
-pip install -e .
+pip install git+https://github.com/haoheliu/SemantiCodec-inference.git
 ```
 
 ## Encoding and decoding
@@ -63,3 +65,14 @@ import soundfile as sf
 sf.write("output.wav", waveform[0,0], 16000)
 ```
 
+## Citation
+If you find this repo helpful, please consider citing in the following format:
+
+```bibtex
+@article{liu2024semanticodec,
+  title={SemantiCodec: An Ultra Low Bitrate Semantic Audio Codec for General Sound},
+  author={Liu, Haohe and Xu, Xuenan and Yuan, Yi and Wu, Mengyue and Wang, Wenwu and Plumbley, Mark D},
+  journal={arXiv preprint arXiv:2405.00233},
+  year={2024}
+}
+```
