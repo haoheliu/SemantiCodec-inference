@@ -8,12 +8,8 @@ import json
 import torch
 import torch.nn.functional as F
 import numpy as np
-import matplotlib
 from scipy.io import wavfile
-from matplotlib import pyplot as plt
 
-
-matplotlib.use("Agg")
 
 import hashlib
 import os
@@ -77,7 +73,6 @@ def listdir_nohidden(path):
     for f in os.listdir(path):
         if not f.startswith("."):
             yield f
-
 
 def get_restore_step(path):
     checkpoints = os.listdir(path)
@@ -324,80 +319,6 @@ def expand(values, durations):
     return np.array(out)
 
 
-def synth_one_sample_val(
-    targets, predictions, vocoder, model_config, preprocess_config
-):
-    index = np.random.choice(list(np.arange(targets[6].size(0))))
-
-    basename = targets[0][index]
-    src_len = predictions[8][index].item()
-    mel_len = predictions[9][index].item()
-    mel_target = targets[6][index, :mel_len].detach().transpose(0, 1)
-
-    mel_prediction = predictions[0][index, :mel_len].detach().transpose(0, 1)
-    postnet_mel_prediction = predictions[1][index, :mel_len].detach().transpose(0, 1)
-    duration = targets[11][index, :src_len].detach().cpu().numpy()
-
-    if preprocess_config["preprocessing"]["pitch"]["feature"] == "phoneme_level":
-        pitch = predictions[2][index, :src_len].detach().cpu().numpy()
-        pitch = expand(pitch, duration)
-    else:
-        pitch = predictions[2][index, :mel_len].detach().cpu().numpy()
-
-    if preprocess_config["preprocessing"]["energy"]["feature"] == "phoneme_level":
-        energy = predictions[3][index, :src_len].detach().cpu().numpy()
-        energy = expand(energy, duration)
-    else:
-        energy = predictions[3][index, :mel_len].detach().cpu().numpy()
-
-    with open(
-        os.path.join(preprocess_config["path"]["preprocessed_path"], "stats.json")
-    ) as f:
-        stats = json.load(f)
-        stats = stats["pitch"] + stats["energy"][:2]
-
-    # from datetime import datetime
-    # now = datetime.now()
-    # current_time = now.strftime("%D:%H:%M:%S")
-    # np.save(("mel_pred_%s.npy" % current_time).replace("/","-"), mel_prediction.cpu().numpy())
-    # np.save(("postnet_mel_prediction_%s.npy" % current_time).replace("/","-"), postnet_mel_prediction.cpu().numpy())
-    # np.save(("mel_target_%s.npy" % current_time).replace("/","-"), mel_target.cpu().numpy())
-
-    fig = plot_mel(
-        [
-            (mel_prediction.cpu().numpy(), pitch, energy),
-            (postnet_mel_prediction.cpu().numpy(), pitch, energy),
-            (mel_target.cpu().numpy(), pitch, energy),
-        ],
-        stats,
-        [
-            "Raw mel spectrogram prediction",
-            "Postnet mel prediction",
-            "Ground-Truth Spectrogram",
-        ],
-    )
-
-    if vocoder is not None:
-        from .model import vocoder_infer
-
-        wav_reconstruction = vocoder_infer(
-            mel_target.unsqueeze(0),
-            vocoder,
-            model_config,
-            preprocess_config,
-        )[0]
-        wav_prediction = vocoder_infer(
-            postnet_mel_prediction.unsqueeze(0),
-            vocoder,
-            model_config,
-            preprocess_config,
-        )[0]
-    else:
-        wav_reconstruction = wav_prediction = None
-
-    return fig, wav_reconstruction, wav_prediction, basename
-
-
 def synth_one_sample(mel_input, mel_prediction, labels, vocoder):
     if vocoder is not None:
         from .model import vocoder_infer
@@ -414,76 +335,6 @@ def synth_one_sample(mel_input, mel_prediction, labels, vocoder):
         wav_reconstruction = wav_prediction = None
 
     return wav_reconstruction, wav_prediction
-
-
-def synth_samples(targets, predictions, vocoder, model_config, preprocess_config, path):
-    # (diff_output, diff_loss, latent_loss) = diffusion
-
-    basenames = targets[0]
-
-    for i in range(len(predictions[1])):
-        basename = basenames[i]
-        src_len = predictions[8][i].item()
-        mel_len = predictions[9][i].item()
-        mel_prediction = predictions[1][i, :mel_len].detach().transpose(0, 1)
-        # diff_output = diff_output[i, :mel_len].detach().transpose(0, 1)
-        # duration = predictions[5][i, :src_len].detach().cpu().numpy()
-        if preprocess_config["preprocessing"]["pitch"]["feature"] == "phoneme_level":
-            pitch = predictions[2][i, :src_len].detach().cpu().numpy()
-            # pitch = expand(pitch, duration)
-        else:
-            pitch = predictions[2][i, :mel_len].detach().cpu().numpy()
-        if preprocess_config["preprocessing"]["energy"]["feature"] == "phoneme_level":
-            energy = predictions[3][i, :src_len].detach().cpu().numpy()
-            # energy = expand(energy, duration)
-        else:
-            energy = predictions[3][i, :mel_len].detach().cpu().numpy()
-        # import ipdb; ipdb.set_trace()
-        with open(
-            os.path.join(preprocess_config["path"]["preprocessed_path"], "stats.json")
-        ) as f:
-            stats = json.load(f)
-            stats = stats["pitch"] + stats["energy"][:2]
-
-        fig = plot_mel(
-            [
-                (mel_prediction.cpu().numpy(), pitch, energy),
-            ],
-            stats,
-            ["Synthetized Spectrogram by PostNet"],
-        )
-        # np.save("{}_postnet.npy".format(basename), mel_prediction.cpu().numpy())
-        plt.savefig(os.path.join(path, "{}_postnet_2.png".format(basename)))
-        plt.close()
-
-    from .model import vocoder_infer
-
-    mel_predictions = predictions[1].transpose(1, 2)
-    lengths = predictions[9] * preprocess_config["preprocessing"]["stft"]["hop_length"]
-    wav_predictions = vocoder_infer(
-        mel_predictions, vocoder, model_config, preprocess_config, lengths=lengths
-    )
-
-    sampling_rate = preprocess_config["preprocessing"]["audio"]["sampling_rate"]
-    for wav, basename in zip(wav_predictions, basenames):
-        wavfile.write(os.path.join(path, "{}.wav".format(basename)), sampling_rate, wav)
-
-
-def plot_mel(data, titles=None):
-    fig, axes = plt.subplots(len(data), 1, squeeze=False)
-    if titles is None:
-        titles = [None for i in range(len(data))]
-
-    for i in range(len(data)):
-        mel = data[i]
-        axes[i][0].imshow(mel, origin="lower", aspect="auto")
-        axes[i][0].set_aspect(2.5, adjustable="box")
-        axes[i][0].set_ylim(0, mel.shape[0])
-        axes[i][0].set_title(titles[i], fontsize="medium")
-        axes[i][0].tick_params(labelsize="x-small", left=False, labelleft=False)
-        axes[i][0].set_anchor("W")
-
-    return fig
 
 
 def pad_1D(inputs, PAD=0):
