@@ -34,7 +34,7 @@ REQUIRES_PYTHON = ">=3.8.0"
 VERSION = "0.0.1"
 
 # What packages are required for this module to be executed?
-REQUIRED = ["torch", "torchaudio", "soundfile", "vector-quantize-pytorch","huggingface_hub","timm"]
+REQUIRED = ["torch", "torchaudio", "soundfile", "vector-quantize-pytorch", "huggingface_hub", "timm", "scipy"]
 
 # What packages are optional?
 EXTRAS = {}
