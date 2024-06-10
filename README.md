@@ -65,6 +65,8 @@ import soundfile as sf
 sf.write("output.wav", waveform[0,0], 16000)
 ```
 
+If you are interested in reusing the same evaluation pipeline and data in the paper, please refer to this [zenodo repo](https://zenodo.org/records/11047204).
+
 ## Citation
 If you find this repo helpful, please consider citing in the following format:
 
