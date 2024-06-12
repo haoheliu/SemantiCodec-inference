@@ -23,7 +23,7 @@ from semanticodec import SemantiCodec
 
 semanticodec = SemantiCodec(token_rate=50, semantic_vocab_size=16384) # 0.68 kbps
 
-filepath = "test/test.wav" # for example 10 seconds
+filepath = "test/test.wav" # audio with arbitrary length
 
 tokens = semanticodec.encode(filepath) # tokens: torch.Size([1, 250, 2])
 waveform = semanticodec.decode(tokens)
