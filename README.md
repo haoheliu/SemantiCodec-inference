@@ -1,4 +1,4 @@
-[![arXiv](https://img.shields.io/badge/arXiv-2301.12503-brightgreen.svg?style=flat-square)](https://arxiv.org/abs/2405.00233)  [![githubio](https://img.shields.io/badge/GitHub.io-Audio_Samples-blue?logo=Github&style=flat-square)](https://haoheliu.github.io/SemantiCodec/) 
+[![arXiv](https://img.shields.io/badge/arXiv-2405.00233-brightgreen.svg?style=flat-square)](https://arxiv.org/abs/2405.00233)  [![githubio](https://img.shields.io/badge/GitHub.io-Audio_Samples-blue?logo=Github&style=flat-square)](https://haoheliu.github.io/SemantiCodec/) 
 
 # SemantiCodec
 Ultra-low bitrate neural audio codec with a better semantic in the latent space.
