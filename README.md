@@ -18,6 +18,8 @@ pip install git+https://github.com/haoheliu/SemantiCodec-inference.git
 
 ## Encoding and decoding
 
+**Checkpoints will be automatically downloaded when you initialize the SemantiCodec with the following code.**
+
 ```python
 from semanticodec import SemantiCodec
 
@@ -34,8 +36,6 @@ sf.write("output.wav", waveform[0,0], 16000)
 ```
 
 ## Other Settings
-
-Checkpoints will be automatically downloaded when you initialize the SemantiCodec with the following code.
 
 ```python
 from semanticodec import SemantiCodec
