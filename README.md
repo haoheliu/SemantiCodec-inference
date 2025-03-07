@@ -73,11 +73,15 @@ If you are interested in reusing the same evaluation pipeline and data in the pa
 If you find this repo helpful, please consider citing in the following format:
 
 ```bibtex
-@article{liu2024semanticodec,
-  title={SemantiCodec: An Ultra Low Bitrate Semantic Audio Codec for General Sound},
-  author={Liu, Haohe and Xu, Xuenan and Yuan, Yi and Wu, Mengyue and Wang, Wenwu and Plumbley, Mark D},
-  journal={arXiv preprint arXiv:2405.00233},
-  year={2024}
+@ARTICLE{semanticodec2024,
+  author={Liu, Haohe and Xu, Xuenan and Yuan, Yi and Wu, Mengyue and Wang, Wenwu and Plumbley, Mark D.},
+  journal={IEEE Journal of Selected Topics in Signal Processing}, 
+  title={SemantiCodec: An Ultra Low Bitrate Semantic Audio Codec for General Sound}, 
+  year={2024},
+  volume={18},
+  number={8},
+  pages={1448-1461},
+  doi={10.1109/JSTSP.2024.3506286}
 }
 ```
 
